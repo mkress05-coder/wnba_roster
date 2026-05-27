@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WNBA Roster Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f13;
+      color: #e8e8f0;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px 0 24px;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
+    header p  { color: #888; font-size: 0.85rem; margin-top: 4px; }
+
+    section { margin-bottom: 28px; }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #888;
+      margin-bottom: 10px;
+      padding-left: 2px;
+    }
+
+    .player-card {
+      background: #1a1a24;
+      border: 1px solid #2a2a38;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .player-card.ir-card { border-color: #3a2a10; background: #1e1810; }
+
+    .player-info { flex: 1; min-width: 0; }
+    .player-name { font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-id   { font-size: 0.75rem; color: #666; margin-top: 2px; }
+
+    .btn {
+      border: none;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 7px 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-ir     { background: #2a1f00; color: #f5a623; }
+    .btn-active { background: #0f2a1a; color: #4ade80; }
+    .btn-remove { background: #2a1018; color: #f87171; margin-left: 4px; }
+
+    .add-form {
+      background: #1a1a24;
+      border: 1px solid #2a2a38;
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.8px; }
+
+    input[type="text"] {
+      width: 100%;
+      background: #0f0f13;
+      border: 1px solid #2a2a38;
+      border-radius: 8px;
+      color: #e8e8f0;
+      font-size: 1rem;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus { border-color: #5b5bdb; }
+
+    .ir-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .ir-toggle input { width: 18px; height: 18px; cursor: pointer; accent-color: #f5a623; }
+    .ir-toggle span  { font-size: 0.9rem; color: #ccc; }
+
+    .btn-submit {
+      width: 100%;
+      background: #5b5bdb;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 14px;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: background 0.15s;
+    }
+    .btn-submit:active  { background: #4a4ab8; }
+    .btn-submit:disabled { background: #2a2a4a; color: #666; cursor: not-allowed; }
+
+    .hint {
+      font-size: 0.72rem;
+      color: #555;
+      margin-top: 6px;
+    }
+    .hint a { color: #5b5bdb; text-decoration: none; }
+
+    .empty { color: #555; font-size: 0.9rem; padding: 10px 2px; }
+
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #23232f;
+      border: 1px solid #3a3a50;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: transform 0.25s ease;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: #4ade80; color: #4ade80; }
+    #toast.error   { border-color: #f87171; color: #f87171; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏀 WNBA Roster</h1>
+  <p>Tap IR to bench • tap Active to restore • tap ✕ to drop</p>
+</header>
+
+<section>
+  <div class="section-title">Active</div>
+  <div id="active-list"><div class="empty">Loading...</div></div>
+</section>
+
+<section>
+  <div class="section-title">IR</div>
+  <div id="ir-list"><div class="empty">Loading...</div></div>
+</section>
+
+<section>
+  <div class="section-title">Add Player</div>
+  <div class="add-form">
+    <div class="form-group">
+      <label>Player Name</label>
+      <input type="text" id="inp-name" placeholder="e.g. Arike Ogunbowale" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>ESPN ID</label>
+      <input type="text" id="inp-espn" placeholder="e.g. 3904577" inputmode="numeric" autocomplete="off">
+      <div class="hint">Find it at <a href="https://www.espn.com/wnba/players" target="_blank">espn.com/wnba/players</a> — the number in the URL</div>
+    </div>
+    <div class="form-group">
+      <label class="ir-toggle">
+        <input type="checkbox" id="inp-ir">
+        <span>Add directly to IR</span>
+      </label>
+    </div>
+    <button class="btn-submit" id="btn-add" onclick="addPlayer()">Add to Roster</button>
+  </div>
+</section>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://bxnebhaxunffngsimomr.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4bmViaGF4dW5mZm5nc2ltb21yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MzQwMjIsImV4cCI6MjA5NDExMDAyMn0.gukJ4FnS_MpeVmXVoYpioExNuI9qY_BRGb6FWqctE2c";
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ── Render ────────────────────────────────────────────
+
+  async function loadRoster() {
+    const { data, error } = await sb
+      .from("roster_config")
+      .select("*")
+      .order("name");
+
+    if (error) { showToast("Failed to load roster", "error"); return; }
+
+    const active = data.filter(p => !p.is_ir);
+    const ir     = data.filter(p =>  p.is_ir);
+
+    renderList("active-list", active, false);
+    renderList("ir-list",     ir,     true);
+  }
+
+  function renderList(containerId, players, isIr) {
+    const el = document.getElementById(containerId);
+    if (!players.length) {
+      el.innerHTML = `<div class="empty">${isIr ? "No players on IR" : "No active players"}</div>`;
+      return;
+    }
+    el.innerHTML = players.map(p => `
+      <div class="player-card ${isIr ? "ir-card" : ""}">
+        <div class="player-info">
+          <div class="player-name">${esc(p.name)}</div>
+          <div class="player-id">ESPN ID: ${esc(p.espn_id)}</div>
+        </div>
+        <button class="btn ${isIr ? "btn-active" : "btn-ir"}"
+                onclick="toggleIR('${p.id}', ${isIr})">
+          ${isIr ? "Active" : "IR"}
+        </button>
+        <button class="btn btn-remove" onclick="removePlayer('${p.id}', '${esc(p.name)}')">✕</button>
+      </div>
+    `).join("");
+  }
+
+  // ── Actions ───────────────────────────────────────────
+
+  async function toggleIR(id, currentlyIr) {
+    const { error } = await sb
+      .from("roster_config")
+      .update({ is_ir: !currentlyIr })
+      .eq("id", id);
+
+    if (error) { showToast("Update failed", "error"); return; }
+    showToast(currentlyIr ? "Moved to Active" : "Moved to IR", "success");
+    loadRoster();
+  }
+
+  async function removePlayer(id, name) {
+    if (!confirm(`Drop ${name} from roster?`)) return;
+    const { error } = await sb.from("roster_config").delete().eq("id", id);
+    if (error) { showToast("Remove failed", "error"); return; }
+    showToast(`${name} dropped`, "success");
+    loadRoster();
+  }
+
+  async function addPlayer() {
+    const name   = document.getElementById("inp-name").value.trim();
+    const espnId = document.getElementById("inp-espn").value.trim();
+    const isIr   = document.getElementById("inp-ir").checked;
+
+    if (!name || !espnId) { showToast("Name and ESPN ID required", "error"); return; }
+
+    const btn = document.getElementById("btn-add");
+    btn.disabled = true;
+    btn.textContent = "Adding...";
+
+    const { error } = await sb.from("roster_config").insert({ name, espn_id: espnId, is_ir: isIr });
+
+    btn.disabled = false;
+    btn.textContent = "Add to Roster";
+
+    if (error) {
+      showToast(error.code === "23505" ? "Player already on roster" : "Add failed", "error");
+      return;
+    }
+
+    document.getElementById("inp-name").value  = "";
+    document.getElementById("inp-espn").value  = "";
+    document.getElementById("inp-ir").checked  = false;
+    showToast(`${name} added`, "success");
+    loadRoster();
+  }
+
+  // ── Toast ─────────────────────────────────────────────
+
+  let _toastTimer;
+  function showToast(msg, type = "success") {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.className   = `show ${type}`;
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { el.className = ""; }, 2500);
+  }
+
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, c =>
+      ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // ── Init ──────────────────────────────────────────────
+  loadRoster();
+</script>
+</body>
+</html>
