@@ -48,7 +48,7 @@
 
     .player-info { flex: 1; min-width: 0; }
     .player-name { font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-id   { font-size: 0.75rem; color: #666; margin-top: 2px; }
+    .player-meta { font-size: 0.75rem; color: #666; margin-top: 2px; }
 
     .btn {
       border: none;
@@ -72,7 +72,7 @@
       padding: 18px;
     }
 
-    .form-group { margin-bottom: 14px; }
+    .form-group { margin-bottom: 14px; position: relative; }
     label { display: block; font-size: 0.75rem; font-weight: 600; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.8px; }
 
     input[type="text"] {
@@ -88,6 +88,45 @@
     }
     input[type="text"]:focus { border-color: #5b5bdb; }
 
+    /* Search results dropdown */
+    #search-results {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: #1e1e2e;
+      border: 1px solid #3a3a50;
+      border-radius: 10px;
+      margin-top: 4px;
+      z-index: 100;
+      overflow: hidden;
+    }
+    .search-result {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #2a2a38;
+      transition: background 0.1s;
+    }
+    .search-result:last-child { border-bottom: none; }
+    .search-result:hover, .search-result:active { background: #2a2a40; }
+    .result-name { font-weight: 600; font-size: 0.95rem; }
+    .result-team { font-size: 0.8rem; color: #888; margin-top: 2px; }
+
+    /* Confirm card */
+    #confirm-card {
+      display: none;
+      background: #12201a;
+      border: 1px solid #4ade80;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    #confirm-card .confirm-name { font-weight: 700; font-size: 1.05rem; }
+    #confirm-card .confirm-team { font-size: 0.85rem; color: #888; margin-top: 3px; }
+    #confirm-card .confirm-actions { display: flex; gap: 10px; margin-top: 14px; }
+    #confirm-card .btn-confirm  { flex: 1; background: #4ade80; color: #0a1a10; border: none; border-radius: 8px; font-weight: 700; font-size: 0.95rem; padding: 11px; cursor: pointer; }
+    #confirm-card .btn-cancel   { background: #2a2a38; color: #aaa; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; padding: 11px 16px; cursor: pointer; }
+
     .ir-toggle {
       display: flex;
       align-items: center;
@@ -97,28 +136,7 @@
     .ir-toggle input { width: 18px; height: 18px; cursor: pointer; accent-color: #f5a623; }
     .ir-toggle span  { font-size: 0.9rem; color: #ccc; }
 
-    .btn-submit {
-      width: 100%;
-      background: #5b5bdb;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 700;
-      padding: 14px;
-      cursor: pointer;
-      margin-top: 6px;
-      transition: background 0.15s;
-    }
-    .btn-submit:active  { background: #4a4ab8; }
-    .btn-submit:disabled { background: #2a2a4a; color: #666; cursor: not-allowed; }
-
-    .hint {
-      font-size: 0.72rem;
-      color: #555;
-      margin-top: 6px;
-    }
-    .hint a { color: #5b5bdb; text-decoration: none; }
+    .searching-hint { font-size: 0.75rem; color: #555; margin-top: 6px; }
 
     .empty { color: #555; font-size: 0.9rem; padding: 10px 2px; }
 
@@ -162,22 +180,31 @@
 <section>
   <div class="section-title">Add Player</div>
   <div class="add-form">
-    <div class="form-group">
+
+    <!-- Confirm card (hidden until player selected) -->
+    <div id="confirm-card">
+      <div class="confirm-name" id="confirm-name"></div>
+      <div class="confirm-team" id="confirm-team"></div>
+      <div class="confirm-actions">
+        <button class="btn-confirm" onclick="confirmAdd()">Add to Roster</button>
+        <button class="btn-cancel" onclick="cancelSearch()">Cancel</button>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="ir-toggle">
+          <input type="checkbox" id="inp-ir">
+          <span>Add directly to IR</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Search input -->
+    <div class="form-group" id="search-group">
       <label>Player Name</label>
-      <input type="text" id="inp-name" placeholder="e.g. Arike Ogunbowale" autocomplete="off">
+      <input type="text" id="inp-search" placeholder="Type a name to search…" autocomplete="off" oninput="onSearch()">
+      <div id="search-results"></div>
+      <div class="searching-hint" id="search-hint"></div>
     </div>
-    <div class="form-group">
-      <label>ESPN ID</label>
-      <input type="text" id="inp-espn" placeholder="e.g. 3904577" inputmode="numeric" autocomplete="off">
-      <div class="hint">Find it at <a href="https://www.espn.com/wnba/players" target="_blank">espn.com/wnba/players</a> — the number in the URL</div>
-    </div>
-    <div class="form-group">
-      <label class="ir-toggle">
-        <input type="checkbox" id="inp-ir">
-        <span>Add directly to IR</span>
-      </label>
-    </div>
-    <button class="btn-submit" id="btn-add" onclick="addPlayer()">Add to Roster</button>
+
   </div>
 </section>
 
@@ -190,7 +217,10 @@
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // ── Render ────────────────────────────────────────────
+  let _selectedPlayer = null; // { name, espn_id, team }
+  let _searchTimer    = null;
+
+  // ── Roster render ─────────────────────────────────────
 
   async function loadRoster() {
     const { data, error } = await sb
@@ -200,11 +230,8 @@
 
     if (error) { showToast("Failed to load roster", "error"); return; }
 
-    const active = data.filter(p => !p.is_ir);
-    const ir     = data.filter(p =>  p.is_ir);
-
-    renderList("active-list", active, false);
-    renderList("ir-list",     ir,     true);
+    renderList("active-list", data.filter(p => !p.is_ir), false);
+    renderList("ir-list",     data.filter(p =>  p.is_ir), true);
   }
 
   function renderList(containerId, players, isIr) {
@@ -217,7 +244,7 @@
       <div class="player-card ${isIr ? "ir-card" : ""}">
         <div class="player-info">
           <div class="player-name">${esc(p.name)}</div>
-          <div class="player-id">ESPN ID: ${esc(p.espn_id)}</div>
+          <div class="player-meta">${esc(p.team || "")}</div>
         </div>
         <button class="btn ${isIr ? "btn-active" : "btn-ir"}"
                 onclick="toggleIR('${p.id}', ${isIr})">
@@ -235,7 +262,6 @@
       .from("roster_config")
       .update({ is_ir: !currentlyIr })
       .eq("id", id);
-
     if (error) { showToast("Update failed", "error"); return; }
     showToast(currentlyIr ? "Moved to Active" : "Moved to IR", "success");
     loadRoster();
@@ -249,31 +275,94 @@
     loadRoster();
   }
 
-  async function addPlayer() {
-    const name   = document.getElementById("inp-name").value.trim();
-    const espnId = document.getElementById("inp-espn").value.trim();
-    const isIr   = document.getElementById("inp-ir").checked;
+  // ── Player search ─────────────────────────────────────
 
-    if (!name || !espnId) { showToast("Name and ESPN ID required", "error"); return; }
+  function onSearch() {
+    const q = document.getElementById("inp-search").value.trim();
+    clearTimeout(_searchTimer);
+    const resultsEl = document.getElementById("search-results");
+    const hintEl    = document.getElementById("search-hint");
 
-    const btn = document.getElementById("btn-add");
-    btn.disabled = true;
-    btn.textContent = "Adding...";
-
-    const { error } = await sb.from("roster_config").insert({ name, espn_id: espnId, is_ir: isIr });
-
-    btn.disabled = false;
-    btn.textContent = "Add to Roster";
-
-    if (error) {
-      showToast(error.code === "23505" ? "Player already on roster" : "Add failed", "error");
+    if (q.length < 2) {
+      resultsEl.style.display = "none";
+      hintEl.textContent = "";
       return;
     }
 
-    document.getElementById("inp-name").value  = "";
-    document.getElementById("inp-espn").value  = "";
-    document.getElementById("inp-ir").checked  = false;
+    hintEl.textContent = "Searching…";
+    _searchTimer = setTimeout(() => searchESPN(q), 350);
+  }
+
+  async function searchESPN(query) {
+    const resultsEl = document.getElementById("search-results");
+    const hintEl    = document.getElementById("search-hint");
+
+    try {
+      const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/athletes?search=${encodeURIComponent(query)}&limit=8`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+
+      const athletes = data.athletes || [];
+      hintEl.textContent = "";
+
+      if (!athletes.length) {
+        resultsEl.innerHTML = `<div class="search-result"><div class="result-name" style="color:#666">No players found</div></div>`;
+        resultsEl.style.display = "block";
+        return;
+      }
+
+      resultsEl.innerHTML = athletes.map(a => {
+        const name = a.fullName || a.displayName || "";
+        const team = a.team?.displayName || a.team?.name || "Unknown Team";
+        const id   = String(a.id);
+        return `
+          <div class="search-result" onclick="selectPlayer(${JSON.stringify({name, team, espn_id: id}).replace(/"/g, '&quot;')})">
+            <div class="result-name">${esc(name)}</div>
+            <div class="result-team">${esc(team)}</div>
+          </div>`;
+      }).join("");
+      resultsEl.style.display = "block";
+
+    } catch(e) {
+      hintEl.textContent = "Search failed — try again";
+      resultsEl.style.display = "none";
+    }
+  }
+
+  function selectPlayer(player) {
+    _selectedPlayer = player;
+
+    document.getElementById("search-results").style.display = "none";
+    document.getElementById("search-group").style.display   = "none";
+
+    document.getElementById("confirm-name").textContent = player.name;
+    document.getElementById("confirm-team").textContent = player.team;
+    document.getElementById("confirm-card").style.display  = "block";
+  }
+
+  function cancelSearch() {
+    _selectedPlayer = null;
+    document.getElementById("confirm-card").style.display  = "none";
+    document.getElementById("search-group").style.display  = "block";
+    document.getElementById("inp-search").value = "";
+    document.getElementById("inp-ir").checked   = false;
+  }
+
+  async function confirmAdd() {
+    if (!_selectedPlayer) return;
+
+    const isIr = document.getElementById("inp-ir").checked;
+    const { name, espn_id, team } = _selectedPlayer;
+
+    const { error } = await sb.from("roster_config").insert({ name, espn_id, team, is_ir: isIr });
+
+    if (error) {
+      showToast(error.code === "23505" ? "Already on roster" : "Add failed", "error");
+      return;
+    }
+
     showToast(`${name} added`, "success");
+    cancelSearch();
     loadRoster();
   }
 
@@ -293,7 +382,13 @@
       ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   }
 
-  // ── Init ──────────────────────────────────────────────
+  // Close dropdown if tapping outside
+  document.addEventListener("click", e => {
+    if (!e.target.closest("#search-group")) {
+      document.getElementById("search-results").style.display = "none";
+    }
+  });
+
   loadRoster();
 </script>
 </body>
