@@ -298,25 +298,29 @@
     const hintEl    = document.getElementById("search-hint");
 
     try {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/athletes?search=${encodeURIComponent(query)}&limit=8`;
+      const url = `https://site.api.espn.com/apis/search/v2?query=${encodeURIComponent(query)}&sport=basketball&league=wnba&limit=10`;
       const resp = await fetch(url);
       const data = await resp.json();
 
-      const athletes = data.athletes || [];
+      // Pull the player results block and filter to WNBA only
+      const playerBlock = (data.results || []).find(r => r.type === "player");
+      const athletes = (playerBlock?.contents || []).filter(a => a.description === "WNBA");
+
       hintEl.textContent = "";
 
       if (!athletes.length) {
-        resultsEl.innerHTML = `<div class="search-result"><div class="result-name" style="color:#666">No players found</div></div>`;
+        resultsEl.innerHTML = `<div class="search-result"><div class="result-name" style="color:#666">No WNBA players found</div></div>`;
         resultsEl.style.display = "block";
         return;
       }
 
       resultsEl.innerHTML = athletes.map(a => {
-        const name = a.fullName || a.displayName || "";
-        const team = a.team?.displayName || a.team?.name || "Unknown Team";
-        const id   = String(a.id);
+        const name   = a.displayName || "";
+        const team   = a.subtitle    || "Unknown Team";
+        // ESPN ID is the number after "a:" in the uid field e.g. "s:40~l:59~a:3904577"
+        const espnId = (a.uid || "").split("~a:")[1] || "";
         return `
-          <div class="search-result" onclick="selectPlayer(${JSON.stringify({name, team, espn_id: id}).replace(/"/g, '&quot;')})">
+          <div class="search-result" onclick="selectPlayer(${JSON.stringify({name, team, espn_id: espnId}).replace(/"/g, '&quot;')})">
             <div class="result-name">${esc(name)}</div>
             <div class="result-team">${esc(team)}</div>
           </div>`;
